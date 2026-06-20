@@ -15,7 +15,7 @@ from sklearn.preprocessing import MinMaxScaler
 warnings.filterwarnings("ignore")
 try:
     from preprocessing import preprocess_shopee, preprocess_tiktok, merge_to_gabungan
-    from storage import save_raw_file, save_gabungan, load_gabungan_bytes, save_strategy_doc, list_strategy_docs, sync_hasil_background, GABUNGAN_PATH, BASE_DIR, PROCESSED_DIR
+    from storage import save_raw_file, save_gabungan, load_gabungan_bytes, save_strategy_doc, list_strategy_docs, sync_hasil_background, _is_cloud, GABUNGAN_PATH, BASE_DIR, PROCESSED_DIR
     _MODULES_OK = True
 except ImportError:
     _MODULES_OK = False
@@ -315,7 +315,7 @@ if page=="🏠 Home":
 
     st.subheader("📋 Log Aktivitas")
     if _MODULES_OK:
-        st.caption(f"📁 Data tersimpan di: `{PROCESSED_DIR}`")
+        if not _is_cloud(): st.caption(f"📁 Data tersimpan di: `{PROCESSED_DIR}`")
     if st.session_state.log:
         ldf=pd.DataFrame(st.session_state.log); ldf["Waktu"]=pd.to_datetime(ldf["Waktu"])
         lf1,lf2,lf3=st.columns(3)
@@ -932,7 +932,7 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
 elif page=="📥 Data & Input":
     st.title("📥 Data & Input Transaksi")
     if _MODULES_OK:
-        st.caption(f"📁 Data disimpan di: `{PROCESSED_DIR}`")
+        if not _is_cloud(): st.caption(f"📁 Data disimpan di: `{PROCESSED_DIR}`")
 
     sumber=st.radio("Pilih sumber data:", ["🟠 Shopee","⚫ TikTok Shop","💬 WhatsApp Business"], horizontal=True)
     if "WhatsApp" in sumber:
