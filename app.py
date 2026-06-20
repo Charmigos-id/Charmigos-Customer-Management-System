@@ -19,11 +19,11 @@ try:
     _MODULES_OK = True
 except ImportError:
     _MODULES_OK = False
-    BASE_DIR = Path("/Users/fairuzaprasetyo/TA Olah Data")
+    BASE_DIR = Path(".")
     PROCESSED_DIR = BASE_DIR / "Data" / "Data hasil pengolahan"
     GABUNGAN_PATH = PROCESSED_DIR / "Transaksi_Gabungan.xlsx"
 st.set_page_config(page_title="Charmigos CRM", page_icon="🛍️", layout="wide", initial_sidebar_state="expanded")
-LOGO_PATH = "/Users/fairuzaprasetyo/TA Olah Data/Gambar/logo charmigos.png"
+LOGO_PATH = Path(__file__).parent / "Gambar" / "logo charmigos.png"
 USERS = {"manager": {"pwd": hashlib.sha256("charmigos123".encode()).hexdigest(), "role":"Manager","name":"Manager Charmigos"}, "staff": {"pwd": hashlib.sha256("staff123".encode()).hexdigest(), "role":"Staff","name":"Staff Operasional"}}
 B2B_THRESHOLD = 300_000
 KANAL_COLOR = {"Shopee":"#EE4D2D","TikTok":"#010101","WhatsApp":"#25D366"}
