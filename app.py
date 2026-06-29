@@ -22,16 +22,8 @@ except ImportError:
     BASE_DIR = Path(".")
     PROCESSED_DIR = BASE_DIR / "Data" / "Data hasil pengolahan"
     GABUNGAN_PATH = PROCESSED_DIR / "Transaksi_Gabungan.xlsx"
-st.set_page_config(page_title="Charmigos CRM", page_icon="🛍️", layout="wide", initial_sidebar_state="expanded")
-try:
-    from storage import _sheets_client, GSHEET_ID, GSHEET_GABUNGAN_TAB
-    gc = _sheets_client()
-    sh = gc.open_by_key(GSHEET_ID)
-    ws = sh.worksheet(GSHEET_GABUNGAN_TAB)
-    data = ws.get_all_values()
-    st.sidebar.success(f"✅ Sheets OK: {len(data)} baris")
-except Exception as e:
-    st.sidebar.error(f"❌ Sheets error: {e}")
+st.set_page_config(page_title="Charmigos CRM", page_icon="🛍️", layout="wide", initial_sidebar_state="collapsed")
+
 LOGO_PATH = Path(__file__).parent / "Gambar" / "logo charmigos.png"
 USERS = {"manager": {"pwd": hashlib.sha256("charmigos123".encode()).hexdigest(), "role":"Manager","name":"Manager Charmigos"}, "staff": {"pwd": hashlib.sha256("staff123".encode()).hexdigest(), "role":"Staff","name":"Staff Operasional"}}
 B2B_THRESHOLD = 300_000
@@ -120,7 +112,7 @@ def prepare_b2c_clustering(rfm_b2c, k_range, safe_boxcox=False, include_ranges=F
         df_q = rfm_b2c.copy(); df_q["R_score_base"] = 1 - df_q["R_norm"]
         out.update({"R_ranges":get_quintile_ranges_ranked(df_q["R_score_base"]),"F_ranges":get_quintile_ranges_ranked(df_q["F_norm"]),"M_ranges":get_quintile_ranges_ranked(df_q["M_norm"])})
     return out
-@st.cache_data(show_spinner="📂 Memuat data…", ttl=300)
+@st.cache_data(show_spinner="📂 Memuat data…", ttl=3600)
 def _load_bytes():
     if _MODULES_OK:
         data = load_gabungan_bytes()
@@ -130,13 +122,13 @@ def _load_bytes():
     if p.exists():
         return p.read_bytes()
     return None
-@st.cache_data(show_spinner="⏳ Pipeline utama…")
+@st.cache_data(show_spinner="⏳ Pipeline utama…", ttl=3600)
 def pipeline(data_bytes:bytes)->dict:
     df=pd.read_excel(io.BytesIO(data_bytes)); df["Waktu Pemesanan"]=pd.to_datetime(df["Waktu Pemesanan"],errors="coerce"); df=df.dropna(subset=["Waktu Pemesanan"]); SNAP=df["Waktu Pemesanan"].max()+pd.Timedelta(days=1)
     rfm=build_rfm(df, SNAP, {"Waktu_Terakhir":("Waktu Pemesanan","max"),"No_Pesanan_Terakhir":("No. Pesanan","last"),"Kanal":("Kanal","last")}); rfm["B2B_flag"]=rfm["Monetary"]>=B2B_THRESHOLD; rfm_b2b=rfm[rfm["B2B_flag"]].copy()
     prep=prepare_b2c_clustering(rfm[~rfm["B2B_flag"]].copy(), range(2,11)); rfm_b2c, cl = prep["rfm_b2c"], prep["cl"]; rfm_b2b["Cluster"]=-1; rfm_b2b["Segment"]="B2B"; rfm_b2b[["R_norm","F_norm","M_norm"]]=None
     return {"df":df,"rfm":rfm,"rfm_b2c":rfm_b2c,"rfm_b2b":rfm_b2b,"rfm_fin":pd.concat([rfm_b2c,rfm_b2b],ignore_index=True),"lams":prep["lams"],"X":prep["X"],"KR":range(2,11),"ine":prep["ine"],"sil":prep["sil"],"sf":prep["sf"],"bk":prep["bk"],"cl":cl,"SNAP":SNAP,"d_raw":prep["d_raw"].copy(),"d_bc":prep["d_bc"].copy(),"d_norm":prep["d_norm"].copy()}
-@st.cache_data(show_spinner="⏳ Pipeline B2C (rentang data)…")
+@st.cache_data(show_spinner="⏳ Pipeline B2C (rentang data)…", ttl=3600)
 def pipeline_b2c_filtered(data_bytes:bytes, date_from, date_to)->dict:
     df_all=pd.read_excel(io.BytesIO(data_bytes)); df_all["Waktu Pemesanan"]=pd.to_datetime(df_all["Waktu Pemesanan"],errors="coerce"); df_all=df_all.dropna(subset=["Waktu Pemesanan"])
     df=df_all[(df_all["Waktu Pemesanan"].dt.date>=date_from)&(df_all["Waktu Pemesanan"].dt.date<=date_to)].copy()
@@ -177,48 +169,42 @@ with st.sidebar:
     else: st.markdown("## 🛍️ Charmigos CRM")
     st.markdown(f"**{st.session_state.uname}** · {st.session_state.urole}")
     data_bytes=_load_bytes(); st.markdown("---")
-    if data_bytes: st.success("✅ Data aktif")
+    if data_bytes:
+        st.success("✅ Data aktif")
+        st.link_button("📊 Buka Google Sheets", "https://docs.google.com/spreadsheets/d/1G2qzgNqjbAcKsLAfWgagWdWlErRSq_t_qA60LnG9qJo")
     else: st.error("❌ Data belum tersedia")
     st.markdown("---"); page=st.radio("Navigasi",["🏠 Home","🎯 Segmentasi Pelanggan","📋 Strategi Pengelolaan","📥 Data & Input"]); st.markdown("---")
     if st.button("🚪 Keluar"): add_log("Logout"); st.session_state.auth=False; st.rerun()
     st.caption("© Charmigos CRM 2026")
+def need_data():
+    st.info("📂 Data belum tersedia. Upload di **Data & Input**.",icon="ℹ️"); st.stop()
+
 # ── Helper: Feedback & Co-Creation ke Sheets ─────────────────
 def _load_sheet_tab(tab_name: str) -> pd.DataFrame:
-    """Load data dari tab Sheets, return DataFrame kosong kalau belum ada."""
     try:
         gc = _sheets_client()
         sh = gc.open_by_key(GSHEET_ID)
         try:
             ws = sh.worksheet(tab_name)
             data = ws.get_all_values()
-            if len(data) <= 1:
-                return pd.DataFrame()
+            if len(data) <= 1: return pd.DataFrame()
             return pd.DataFrame(data[1:], columns=data[0])
-        except Exception:
-            return pd.DataFrame()
-    except Exception:
-        return pd.DataFrame()
+        except Exception: return pd.DataFrame()
+    except Exception: return pd.DataFrame()
 
 def _append_sheet_tab(tab_name: str, row: dict):
-    """Append 1 baris ke tab Sheets, buat tab baru jika belum ada."""
     try:
         gc = _sheets_client()
         sh = gc.open_by_key(GSHEET_ID)
-        try:
-            ws = sh.worksheet(tab_name)
+        try: ws = sh.worksheet(tab_name)
         except Exception:
             ws = sh.add_worksheet(title=tab_name, rows="1000", cols="20")
             ws.append_row(list(row.keys()), value_input_option="USER_ENTERED")
         existing = ws.get_all_values()
-        if not existing:
-            ws.append_row(list(row.keys()), value_input_option="USER_ENTERED")
+        if not existing: ws.append_row(list(row.keys()), value_input_option="USER_ENTERED")
         ws.append_row(list(row.values()), value_input_option="USER_ENTERED")
         return True
-    except Exception as e:
-        return str(e)
-
-def need_data():
-    st.info("📂 Data belum tersedia. Upload di **Data & Input**.",icon="ℹ️"); st.stop()
+    except Exception as e: return str(e)
 if page=="🏠 Home":
     st.title("🏠 Home")
     if not data_bytes: need_data()
@@ -737,18 +723,16 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
             with col_f1:
                 fb_tgl   = st.date_input("📅 Tanggal", key="fb_tgl")
                 fb_user  = st.text_input("👤 Username Pelanggan", key="fb_user")
-                fb_kanal = st.selectbox("🛒 Kanal", ["Shopee", "TikTok Shop", "Tokopedia"], key="fb_kanal")
+                fb_kanal = st.selectbox("🛒 Kanal", ["Shopee","TikTok Shop","Tokopedia"], key="fb_kanal")
             with col_f2:
-                fb_text = st.text_area("💬 Feedback", key="fb_text", height=100)
-            fb_submit = st.form_submit_button("💾 Simpan Feedback")
-            if fb_submit:
+                fb_text = st.text_area("💬 Feedback", key="fb_text", height=120)
+            if st.form_submit_button("💾 Simpan Feedback"):
                 if fb_user and fb_text:
                     row = {"Tanggal":str(fb_tgl),"Username":fb_user,"Kanal":fb_kanal,"Feedback":fb_text,"Dicatat oleh":st.session_state.uname,"Waktu Input":datetime.now().strftime("%Y-%m-%d %H:%M")}
                     result = _append_sheet_tab("Feedback_Pelanggan", row)
                     if result == True: st.success("✅ Feedback tersimpan!"); st.rerun()
                     else: st.error(f"❌ Gagal: {result}")
                 else: st.warning("Username dan Feedback wajib diisi.")
-
         df_feedback = _load_sheet_tab("Feedback_Pelanggan")
         if not df_feedback.empty:
             st.caption(f"📋 {len(df_feedback)} data feedback")
@@ -756,12 +740,8 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
                 c1, c2 = st.columns([11, 1])
                 c1.markdown(f"**{row.get('Tanggal','')}** · `{row.get('Username','')}` · 🛒 {row.get('Kanal','')} — {row.get('Feedback','')}")
                 if c2.button("🗑", key=f"del_fb_{i}", help="Hapus"):
-                    df_new = df_feedback.drop(index=i).reset_index(drop=True)
-                    _sync_tab(df_new, "Feedback_Pelanggan")
-                    st.rerun()
-            st.download_button("📥 Download Feedback", data=to_xl(df_feedback,"Feedback_Pelanggan"),
-                file_name="Feedback_Pelanggan.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_fb")
+                    _sync_tab(df_feedback.drop(index=i).reset_index(drop=True), "Feedback_Pelanggan"); st.rerun()
+            st.download_button("📥 Download Feedback", data=to_xl(df_feedback,"Feedback_Pelanggan"), file_name="Feedback_Pelanggan.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_fb")
 
         # ── Pencatatan Co-Creation ───────────────────────────────
         st.markdown("---")
@@ -771,18 +751,16 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
             with col_c1:
                 cc_tgl   = st.date_input("📅 Tanggal", key="cc_tgl")
                 cc_user  = st.text_input("👤 Username Pelanggan", key="cc_user")
-                cc_kanal = st.selectbox("🛒 Kanal", ["Shopee", "TikTok Shop", "Tokopedia"], key="cc_kanal")
+                cc_kanal = st.selectbox("🛒 Kanal", ["Shopee","TikTok Shop","Tokopedia"], key="cc_kanal")
             with col_c2:
-                cc_saran = st.text_area("💡 Saran Charm", key="cc_saran", height=100)
-            cc_submit = st.form_submit_button("💾 Simpan Co-Creation")
-            if cc_submit:
+                cc_saran = st.text_area("💡 Saran Charm", key="cc_saran", height=120)
+            if st.form_submit_button("💾 Simpan Co-Creation"):
                 if cc_user and cc_saran:
                     row = {"Tanggal":str(cc_tgl),"Username":cc_user,"Kanal":cc_kanal,"Saran Charm":cc_saran,"Dicatat oleh":st.session_state.uname,"Waktu Input":datetime.now().strftime("%Y-%m-%d %H:%M")}
                     result = _append_sheet_tab("CoCreation_Charm", row)
                     if result == True: st.success("✅ Co-Creation tersimpan!"); st.rerun()
                     else: st.error(f"❌ Gagal: {result}")
                 else: st.warning("Username dan Saran Charm wajib diisi.")
-
         df_cc = _load_sheet_tab("CoCreation_Charm")
         if not df_cc.empty:
             st.caption(f"📋 {len(df_cc)} data co-creation")
@@ -790,12 +768,8 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
                 c1, c2 = st.columns([11, 1])
                 c1.markdown(f"**{row.get('Tanggal','')}** · `{row.get('Username','')}` · 🛒 {row.get('Kanal','')} — {row.get('Saran Charm','')}")
                 if c2.button("🗑", key=f"del_cc_{i}", help="Hapus"):
-                    df_new = df_cc.drop(index=i).reset_index(drop=True)
-                    _sync_tab(df_new, "CoCreation_Charm")
-                    st.rerun()
-            st.download_button("📥 Download Co-Creation", data=to_xl(df_cc,"CoCreation_Charm"),
-                file_name="CoCreation_Charm.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_cc")
+                    _sync_tab(df_cc.drop(index=i).reset_index(drop=True), "CoCreation_Charm"); st.rerun()
+            st.download_button("📥 Download Co-Creation", data=to_xl(df_cc,"CoCreation_Charm"), file_name="CoCreation_Charm.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_cc")
 
         st.markdown("---")
         st.subheader("💹 Evaluasi Profitabilitas Strategi B2C")
@@ -1048,6 +1022,45 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
         st.plotly_chart(fig_acq,use_container_width=True)
 
 elif page=="📥 Data & Input":
+    # ── Manajemen User (hanya Manager) ──────────────────────
+    if st.session_state.urole == "Manager":
+        with st.expander("👥 Manajemen User & Password", expanded=False):
+            import hashlib
+            st.markdown("### Ubah Password")
+            col1, col2 = st.columns(2)
+            with col1:
+                target_user = st.selectbox("User", list(USERS.keys()))
+                new_pwd = st.text_input("Password Baru", type="password", key="new_pwd")
+                if st.button("💾 Simpan Password"):
+                    if new_pwd:
+                        USERS[target_user]["pwd"] = hashlib.sha256(new_pwd.encode()).hexdigest()
+                        st.success(f"✅ Password {target_user} berhasil diubah!")
+                    else:
+                        st.warning("Password tidak boleh kosong.")
+            with col2:
+                st.markdown("### Tambah User Baru")
+                new_uname = st.text_input("Username Baru", key="new_uname")
+                new_uname_pwd = st.text_input("Password", type="password", key="new_uname_pwd")
+                new_role = st.selectbox("Role", ["Staff", "Manager"], key="new_role")
+                new_name = st.text_input("Nama Lengkap", key="new_name")
+                if st.button("➕ Tambah User"):
+                    if new_uname and new_uname_pwd and new_name:
+                        if new_uname.lower() in USERS:
+                            st.warning("Username sudah ada.")
+                        else:
+                            USERS[new_uname.lower()] = {
+                                "pwd": hashlib.sha256(new_uname_pwd.encode()).hexdigest(),
+                                "role": new_role,
+                                "name": new_name
+                            }
+                            st.success(f"✅ User '{new_uname}' berhasil ditambahkan!")
+                    else:
+                        st.warning("Lengkapi semua field.")
+            st.markdown("### Daftar User")
+            user_df = [{"Username": k, "Nama": v["name"], "Role": v["role"]} for k, v in USERS.items()]
+            st.dataframe(user_df, use_container_width=True, hide_index=True)
+        st.markdown("---")
+
     st.title("📥 Data & Input Transaksi")
     if _MODULES_OK:
         if not _is_cloud(): st.caption(f"📁 Data disimpan di: `{PROCESSED_DIR}`")
