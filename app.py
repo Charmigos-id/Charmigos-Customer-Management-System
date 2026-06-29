@@ -112,7 +112,7 @@ def prepare_b2c_clustering(rfm_b2c, k_range, safe_boxcox=False, include_ranges=F
         df_q = rfm_b2c.copy(); df_q["R_score_base"] = 1 - df_q["R_norm"]
         out.update({"R_ranges":get_quintile_ranges_ranked(df_q["R_score_base"]),"F_ranges":get_quintile_ranges_ranked(df_q["F_norm"]),"M_ranges":get_quintile_ranges_ranked(df_q["M_norm"])})
     return out
-@st.cache_data(show_spinner="📂 Memuat data…", ttl=300)
+@st.cache_data(show_spinner="📂 Memuat data…", ttl=3600)
 def _load_bytes():
     if _MODULES_OK:
         data = load_gabungan_bytes()
@@ -122,13 +122,13 @@ def _load_bytes():
     if p.exists():
         return p.read_bytes()
     return None
-@st.cache_data(show_spinner="⏳ Pipeline utama…")
+@st.cache_data(show_spinner="⏳ Pipeline utama…", ttl=3600)
 def pipeline(data_bytes:bytes)->dict:
     df=pd.read_excel(io.BytesIO(data_bytes)); df["Waktu Pemesanan"]=pd.to_datetime(df["Waktu Pemesanan"],errors="coerce"); df=df.dropna(subset=["Waktu Pemesanan"]); SNAP=df["Waktu Pemesanan"].max()+pd.Timedelta(days=1)
     rfm=build_rfm(df, SNAP, {"Waktu_Terakhir":("Waktu Pemesanan","max"),"No_Pesanan_Terakhir":("No. Pesanan","last"),"Kanal":("Kanal","last")}); rfm["B2B_flag"]=rfm["Monetary"]>=B2B_THRESHOLD; rfm_b2b=rfm[rfm["B2B_flag"]].copy()
     prep=prepare_b2c_clustering(rfm[~rfm["B2B_flag"]].copy(), range(2,11)); rfm_b2c, cl = prep["rfm_b2c"], prep["cl"]; rfm_b2b["Cluster"]=-1; rfm_b2b["Segment"]="B2B"; rfm_b2b[["R_norm","F_norm","M_norm"]]=None
     return {"df":df,"rfm":rfm,"rfm_b2c":rfm_b2c,"rfm_b2b":rfm_b2b,"rfm_fin":pd.concat([rfm_b2c,rfm_b2b],ignore_index=True),"lams":prep["lams"],"X":prep["X"],"KR":range(2,11),"ine":prep["ine"],"sil":prep["sil"],"sf":prep["sf"],"bk":prep["bk"],"cl":cl,"SNAP":SNAP,"d_raw":prep["d_raw"].copy(),"d_bc":prep["d_bc"].copy(),"d_norm":prep["d_norm"].copy()}
-@st.cache_data(show_spinner="⏳ Pipeline B2C (rentang data)…")
+@st.cache_data(show_spinner="⏳ Pipeline B2C (rentang data)…", ttl=3600)
 def pipeline_b2c_filtered(data_bytes:bytes, date_from, date_to)->dict:
     df_all=pd.read_excel(io.BytesIO(data_bytes)); df_all["Waktu Pemesanan"]=pd.to_datetime(df_all["Waktu Pemesanan"],errors="coerce"); df_all=df_all.dropna(subset=["Waktu Pemesanan"])
     df=df_all[(df_all["Waktu Pemesanan"].dt.date>=date_from)&(df_all["Waktu Pemesanan"].dt.date<=date_to)].copy()
