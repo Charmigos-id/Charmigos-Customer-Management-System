@@ -40,7 +40,7 @@ OAUTH_TOKEN_FILE     = "oauth_token.pkl"
 
 GDRIVE_FOLDER        = "1YlPRqG1Gh51-_YzXjrAVA4jbvA1KtD5H"
 GDRIVE_HASIL_FOLDER  = "1uhkQXn7PK4JUXEHBCpJccuSibRhJdRqU"
-GSHEET_ID            = "1mgPJzxCnUnAbNnG32-pCuZ5Kjvym62Rt"
+GSHEET_ID            = "1G2qzgNqjbAcKsLAfWgagWdWlErRSq_t_qA60LnG9qJo"
 GSHEET_TAB           = "Transaksi"
 GSHEET_GABUNGAN_TAB  = "Transaksi_Gabungan"
 
