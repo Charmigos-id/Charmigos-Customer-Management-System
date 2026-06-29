@@ -793,7 +793,7 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
         _disc_atrisk_ev = _ec2.number_input("Diskon At Risk (%)",        0.0, 100.0, 20.0, 0.5, key="ev_disc_atrisk")
         if _sel_base >= _sel_eval: st.warning("⚠️ Bulan Aplikasi Diskon harus setelah Bulan Klaster Baseline."); st.stop()
         import calendar
-        _base_period = pd.Period(_sel_base, "M"); _eval_period = pd.Period(_sel_eval, "M"); _base_end = _base_period.to_timestamp("M").date(); _eval_start = _eval_period.to_timestamp("S").date(); _eval_end = _eval_period.to_timestamp("M").date()
+        _base_period = pd.Period(_sel_base, "M"); _eval_period = pd.Period(_sel_eval, "M"); _base_end = _base_period.to_timestamp("m").date(); _eval_start = _eval_period.to_timestamp("s").date(); _eval_end = _eval_period.to_timestamp("m").date()
         with st.spinner(f"⏳ Menghitung klaster baseline ({_sel_base})..."): _p_ev_base = pipeline_b2c_filtered(data_bytes, mn_st, _base_end)
         if not _p_ev_base: st.warning("Data klaster baseline tidak cukup."); st.stop()
         _rfm_base_ev = _p_ev_base["rfm_b2c"]; _base_seg_dict = _rfm_base_ev.set_index("User ID")["Segment"].to_dict()
