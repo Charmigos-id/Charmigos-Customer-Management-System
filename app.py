@@ -23,6 +23,15 @@ except ImportError:
     PROCESSED_DIR = BASE_DIR / "Data" / "Data hasil pengolahan"
     GABUNGAN_PATH = PROCESSED_DIR / "Transaksi_Gabungan.xlsx"
 st.set_page_config(page_title="Charmigos CRM", page_icon="🛍️", layout="wide", initial_sidebar_state="expanded")
+try:
+    from storage import _sheets_client, GSHEET_ID, GSHEET_GABUNGAN_TAB
+    gc = _sheets_client()
+    sh = gc.open_by_key(GSHEET_ID)
+    ws = sh.worksheet(GSHEET_GABUNGAN_TAB)
+    data = ws.get_all_values()
+    st.sidebar.success(f"✅ Sheets OK: {len(data)} baris")
+except Exception as e:
+    st.sidebar.error(f"❌ Sheets error: {e}")
 LOGO_PATH = Path(__file__).parent / "Gambar" / "logo charmigos.png"
 USERS = {"manager": {"pwd": hashlib.sha256("charmigos123".encode()).hexdigest(), "role":"Manager","name":"Manager Charmigos"}, "staff": {"pwd": hashlib.sha256("staff123".encode()).hexdigest(), "role":"Staff","name":"Staff Operasional"}}
 B2B_THRESHOLD = 300_000
@@ -113,9 +122,14 @@ def prepare_b2c_clustering(rfm_b2c, k_range, safe_boxcox=False, include_ranges=F
     return out
 @st.cache_data(show_spinner="📂 Memuat data…")
 def _load_bytes():
-    if _MODULES_OK: return load_gabungan_bytes()
-    p = BASE_DIR / "Data" / "Data hasil pengolahan" / "Transaksi_Gabungan.xlsx"
-    return p.read_bytes() if p.exists() else None
+    if _MODULES_OK:
+        data = load_gabungan_bytes()
+        if data is not None:
+            return data
+    p = Path(__file__).parent / "Data" / "Data hasil pengolahan" / "Transaksi_Gabungan.xlsx"
+    if p.exists():
+        return p.read_bytes()
+    return None
 @st.cache_data(show_spinner="⏳ Pipeline utama…")
 def pipeline(data_bytes:bytes)->dict:
     df=pd.read_excel(io.BytesIO(data_bytes)); df["Waktu Pemesanan"]=pd.to_datetime(df["Waktu Pemesanan"],errors="coerce"); df=df.dropna(subset=["Waktu Pemesanan"]); SNAP=df["Waktu Pemesanan"].max()+pd.Timedelta(days=1)
