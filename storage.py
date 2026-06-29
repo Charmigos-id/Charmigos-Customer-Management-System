@@ -62,13 +62,15 @@ def _get_sa_creds():
     """Load Service Account credentials — dari Secrets (cloud) atau file (lokal)."""
     if _is_cloud():
         import streamlit as st
-        creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
         import tempfile, os
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
-        json.dump(creds_dict, tmp)
-        tmp.close()
-        creds = SACredentials.from_service_account_file(tmp.name, scopes=SCOPES)
-        os.unlink(tmp.name)
+        raw = st.secrets["GOOGLE_CREDENTIALS"]
+        # Bersihkan karakter aneh
+        raw = raw.replace("\\n", "\n").strip()
+        creds_dict = json.loads(raw)
+        # Pastikan private key punya newline yang benar
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        creds = SACredentials.from_service_account_info(creds_dict, scopes=SCOPES)
         return creds
     return SACredentials.from_service_account_file(SA_CREDS_FILE, scopes=SCOPES)
 
