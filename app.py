@@ -120,7 +120,7 @@ def prepare_b2c_clustering(rfm_b2c, k_range, safe_boxcox=False, include_ranges=F
         df_q = rfm_b2c.copy(); df_q["R_score_base"] = 1 - df_q["R_norm"]
         out.update({"R_ranges":get_quintile_ranges_ranked(df_q["R_score_base"]),"F_ranges":get_quintile_ranges_ranked(df_q["F_norm"]),"M_ranges":get_quintile_ranges_ranked(df_q["M_norm"])})
     return out
-@st.cache_data(show_spinner="📂 Memuat data…")
+@st.cache_data(show_spinner="📂 Memuat data…", ttl=300)
 def _load_bytes():
     if _MODULES_OK:
         data = load_gabungan_bytes()
