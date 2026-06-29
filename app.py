@@ -23,15 +23,7 @@ except ImportError:
     PROCESSED_DIR = BASE_DIR / "Data" / "Data hasil pengolahan"
     GABUNGAN_PATH = PROCESSED_DIR / "Transaksi_Gabungan.xlsx"
 st.set_page_config(page_title="Charmigos CRM", page_icon="🛍️", layout="wide", initial_sidebar_state="expanded")
-try:
-    from storage import _sheets_client, GSHEET_ID, GSHEET_GABUNGAN_TAB
-    gc = _sheets_client()
-    sh = gc.open_by_key(GSHEET_ID)
-    ws = sh.worksheet(GSHEET_GABUNGAN_TAB)
-    data = ws.get_all_values()
-    st.sidebar.success(f"✅ Sheets OK: {len(data)} baris")
-except Exception as e:
-    st.sidebar.error(f"❌ Sheets error: {e}")
+
 LOGO_PATH = Path(__file__).parent / "Gambar" / "logo charmigos.png"
 USERS = {"manager": {"pwd": hashlib.sha256("charmigos123".encode()).hexdigest(), "role":"Manager","name":"Manager Charmigos"}, "staff": {"pwd": hashlib.sha256("staff123".encode()).hexdigest(), "role":"Staff","name":"Staff Operasional"}}
 B2B_THRESHOLD = 300_000
@@ -177,7 +169,9 @@ with st.sidebar:
     else: st.markdown("## 🛍️ Charmigos CRM")
     st.markdown(f"**{st.session_state.uname}** · {st.session_state.urole}")
     data_bytes=_load_bytes(); st.markdown("---")
-    if data_bytes: st.success("✅ Data aktif")
+    if data_bytes:
+        st.success("✅ Data aktif")
+        st.link_button("📊 Buka Google Sheets", "https://docs.google.com/spreadsheets/d/1G2qzgNqjbAcKsLAfWgagWdWlErRSq_t_qA60LnG9qJo")
     else: st.error("❌ Data belum tersedia")
     st.markdown("---"); page=st.radio("Navigasi",["🏠 Home","🎯 Segmentasi Pelanggan","📋 Strategi Pengelolaan","📥 Data & Input"]); st.markdown("---")
     if st.button("🚪 Keluar"): add_log("Logout"); st.session_state.auth=False; st.rerun()
@@ -944,6 +938,45 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
         st.plotly_chart(fig_acq,use_container_width=True)
 
 elif page=="📥 Data & Input":
+    # ── Manajemen User (hanya Manager) ──────────────────────
+    if st.session_state.urole == "Manager":
+        with st.expander("👥 Manajemen User & Password", expanded=False):
+            import hashlib
+            st.markdown("### Ubah Password")
+            col1, col2 = st.columns(2)
+            with col1:
+                target_user = st.selectbox("User", list(USERS.keys()))
+                new_pwd = st.text_input("Password Baru", type="password", key="new_pwd")
+                if st.button("💾 Simpan Password"):
+                    if new_pwd:
+                        USERS[target_user]["pwd"] = hashlib.sha256(new_pwd.encode()).hexdigest()
+                        st.success(f"✅ Password {target_user} berhasil diubah!")
+                    else:
+                        st.warning("Password tidak boleh kosong.")
+            with col2:
+                st.markdown("### Tambah User Baru")
+                new_uname = st.text_input("Username Baru", key="new_uname")
+                new_uname_pwd = st.text_input("Password", type="password", key="new_uname_pwd")
+                new_role = st.selectbox("Role", ["Staff", "Manager"], key="new_role")
+                new_name = st.text_input("Nama Lengkap", key="new_name")
+                if st.button("➕ Tambah User"):
+                    if new_uname and new_uname_pwd and new_name:
+                        if new_uname.lower() in USERS:
+                            st.warning("Username sudah ada.")
+                        else:
+                            USERS[new_uname.lower()] = {
+                                "pwd": hashlib.sha256(new_uname_pwd.encode()).hexdigest(),
+                                "role": new_role,
+                                "name": new_name
+                            }
+                            st.success(f"✅ User '{new_uname}' berhasil ditambahkan!")
+                    else:
+                        st.warning("Lengkapi semua field.")
+            st.markdown("### Daftar User")
+            user_df = [{"Username": k, "Nama": v["name"], "Role": v["role"]} for k, v in USERS.items()]
+            st.dataframe(user_df, use_container_width=True, hide_index=True)
+        st.markdown("---")
+
     st.title("📥 Data & Input Transaksi")
     if _MODULES_OK:
         if not _is_cloud(): st.caption(f"📁 Data disimpan di: `{PROCESSED_DIR}`")
