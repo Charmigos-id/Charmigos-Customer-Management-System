@@ -25,7 +25,7 @@ except ImportError:
 def _is_cloud() -> bool:
     try:
         import streamlit as st
-        _ = st.secrets["GOOGLE_CREDENTIALS"]
+        _ = st.secrets["google"]
         return True
     except Exception:
         return False
@@ -62,14 +62,20 @@ def _get_sa_creds():
     """Load Service Account credentials — dari Secrets (cloud) atau file (lokal)."""
     if _is_cloud():
         import streamlit as st
-        import tempfile, os
-        raw = st.secrets["GOOGLE_CREDENTIALS"]
-        # Bersihkan karakter aneh
-        raw = raw.replace("\\n", "\n").strip()
-        creds_dict = json.loads(raw)
-        # Pastikan private key punya newline yang benar
-        if "private_key" in creds_dict:
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        # Baca dari format TOML [google]
+        g = st.secrets["google"]
+        creds_dict = {
+            "type": "service_account",
+            "project_id": g["project_id"],
+            "private_key_id": g["private_key_id"],
+            "private_key": g["private_key"],
+            "client_email": g["client_email"],
+            "client_id": g["client_id"],
+            "auth_uri": g["auth_uri"],
+            "token_uri": g["token_uri"],
+            "auth_provider_x509_cert_url": g["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": g["client_x509_cert_url"],
+        }
         creds = SACredentials.from_service_account_info(creds_dict, scopes=SCOPES)
         return creds
     return SACredentials.from_service_account_file(SA_CREDS_FILE, scopes=SCOPES)
