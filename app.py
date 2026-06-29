@@ -22,7 +22,7 @@ except ImportError:
     BASE_DIR = Path(".")
     PROCESSED_DIR = BASE_DIR / "Data" / "Data hasil pengolahan"
     GABUNGAN_PATH = PROCESSED_DIR / "Transaksi_Gabungan.xlsx"
-st.set_page_config(page_title="Charmigos CRM", page_icon="🛍️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Charmigos CRM", page_icon="🛍️", layout="wide", initial_sidebar_state="expanded")
 
 LOGO_PATH = Path(__file__).parent / "Gambar" / "logo charmigos.png"
 USERS = {"manager": {"pwd": hashlib.sha256("charmigos123".encode()).hexdigest(), "role":"Manager","name":"Manager Charmigos"}, "staff": {"pwd": hashlib.sha256("staff123".encode()).hexdigest(), "role":"Staff","name":"Staff Operasional"}}
@@ -735,13 +735,18 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
                 else: st.warning("Username dan Feedback wajib diisi.")
         df_feedback = _load_sheet_tab("Feedback_Pelanggan")
         if not df_feedback.empty:
-            st.caption(f"📋 {len(df_feedback)} data feedback")
-            for i, row in df_feedback.iterrows():
-                c1, c2 = st.columns([11, 1])
-                c1.markdown(f"**{row.get('Tanggal','')}** · `{row.get('Username','')}` · 🛒 {row.get('Kanal','')} — {row.get('Feedback','')}")
-                if c2.button("🗑", key=f"del_fb_{i}", help="Hapus"):
-                    _sync_tab(df_feedback.drop(index=i).reset_index(drop=True), "Feedback_Pelanggan"); st.rerun()
-            st.download_button("📥 Download Feedback", data=to_xl(df_feedback,"Feedback_Pelanggan"), file_name="Feedback_Pelanggan.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_fb")
+            with st.expander(f"📋 Lihat Data Feedback ({len(df_feedback)} data)", expanded=False):
+                cols_show = ["Tanggal","Username","Kanal","Feedback","Dicatat oleh"]
+                cols_exist = [c for c in cols_show if c in df_feedback.columns]
+                st.dataframe(df_feedback[cols_exist], use_container_width=True, hide_index=True)
+                c1, c2 = st.columns([3,1])
+                with c1:
+                    del_idx = st.number_input("Hapus baris ke- (mulai dari 1)", min_value=1, max_value=len(df_feedback), step=1, key="del_fb_idx")
+                with c2:
+                    st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+                    if st.button("🗑 Hapus", key="btn_del_fb"):
+                        _sync_tab(df_feedback.drop(index=del_idx-1).reset_index(drop=True), "Feedback_Pelanggan"); st.rerun()
+                st.download_button("📥 Download Feedback", data=to_xl(df_feedback,"Feedback_Pelanggan"), file_name="Feedback_Pelanggan.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_fb")
 
         # ── Pencatatan Co-Creation ───────────────────────────────
         st.markdown("---")
@@ -763,13 +768,18 @@ border-radius:8px;padding:10px 14px;margin-bottom:6px">
                 else: st.warning("Username dan Saran Charm wajib diisi.")
         df_cc = _load_sheet_tab("CoCreation_Charm")
         if not df_cc.empty:
-            st.caption(f"📋 {len(df_cc)} data co-creation")
-            for i, row in df_cc.iterrows():
-                c1, c2 = st.columns([11, 1])
-                c1.markdown(f"**{row.get('Tanggal','')}** · `{row.get('Username','')}` · 🛒 {row.get('Kanal','')} — {row.get('Saran Charm','')}")
-                if c2.button("🗑", key=f"del_cc_{i}", help="Hapus"):
-                    _sync_tab(df_cc.drop(index=i).reset_index(drop=True), "CoCreation_Charm"); st.rerun()
-            st.download_button("📥 Download Co-Creation", data=to_xl(df_cc,"CoCreation_Charm"), file_name="CoCreation_Charm.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_cc")
+            with st.expander(f"📋 Lihat Data Co-Creation ({len(df_cc)} data)", expanded=False):
+                cols_show = ["Tanggal","Username","Kanal","Saran Charm","Dicatat oleh"]
+                cols_exist = [c for c in cols_show if c in df_cc.columns]
+                st.dataframe(df_cc[cols_exist], use_container_width=True, hide_index=True)
+                c1, c2 = st.columns([3,1])
+                with c1:
+                    del_idx = st.number_input("Hapus baris ke- (mulai dari 1)", min_value=1, max_value=len(df_cc), step=1, key="del_cc_idx")
+                with c2:
+                    st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+                    if st.button("🗑 Hapus", key="btn_del_cc"):
+                        _sync_tab(df_cc.drop(index=del_idx-1).reset_index(drop=True), "CoCreation_Charm"); st.rerun()
+                st.download_button("📥 Download Co-Creation", data=to_xl(df_cc,"CoCreation_Charm"), file_name="CoCreation_Charm.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_cc")
 
         st.markdown("---")
         st.subheader("💹 Evaluasi Profitabilitas Strategi B2C")
