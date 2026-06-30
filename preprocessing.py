@@ -345,7 +345,11 @@ def merge_to_gabungan(df_new, df_existing=None):
     df = _to_gabungan_format(df_new)
     n_dup = 0
     if df_existing is not None and not df_existing.empty:
+        df_existing = df_existing.copy()
         df_existing["No. Pesanan"] = _get_1d(df_existing, "No. Pesanan").astype(str).str.strip()
+        # Pastikan Waktu Pemesanan bertipe datetime (data dari Sheets bisa berupa string)
+        if "Waktu Pemesanan" in df_existing.columns:
+            df_existing["Waktu Pemesanan"] = pd.to_datetime(df_existing["Waktu Pemesanan"], errors="coerce")
         already = _get_1d(df, "No. Pesanan").isin(df_existing["No. Pesanan"])
         n_dup = int(already.sum())
         df_clean = df[~already]
@@ -354,6 +358,8 @@ def merge_to_gabungan(df_new, df_existing=None):
     else:
         n_added = len(df)
         merged = df[_REQ].copy()
+    merged["Waktu Pemesanan"] = pd.to_datetime(merged["Waktu Pemesanan"], errors="coerce")
+    merged = merged.dropna(subset=["Waktu Pemesanan"])
     merged = merged.sort_values("Waktu Pemesanan").reset_index(drop=True)
     return merged, n_added, n_dup
 
